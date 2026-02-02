@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Configuration
+PORT=8000
+
+echo "------------------------------------------------"
+echo "Starting Development Server..."
+echo "------------------------------------------------"
+echo "Access your page at: http://localhost:$PORT/start.html"
+echo "Press Ctrl+C to stop."
+echo "------------------------------------------------"
+
+# Run Python server on port 8000
+python3 -m http.server $PORT

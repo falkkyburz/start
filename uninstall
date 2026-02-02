@@ -1,0 +1,46 @@
+#!/bin/bash
+
+SERVICE_NAME="startpage"
+DOMAIN="start.local"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then 
+  echo "Please run as root (use sudo)"
+  exit 1
+fi
+
+echo "Uninstalling Startpage..."
+
+# 1. Stop and Disable Service
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "Stopping service..."
+    systemctl stop "$SERVICE_NAME"
+fi
+
+if systemctl is-enabled --quiet "$SERVICE_NAME"; then
+    echo "Disabling service..."
+    systemctl disable "$SERVICE_NAME"
+fi
+
+# 2. Remove Systemd Service File
+if [ -f "$SERVICE_FILE" ]; then
+    echo "Removing service file..."
+    rm "$SERVICE_FILE"
+    systemctl daemon-reload
+else
+    echo "Service file not found."
+fi
+
+# 3. Clean up /etc/hosts
+# Uses sed to delete lines containing the domain name
+if grep -q "$DOMAIN" /etc/hosts; then
+    echo "Removing $DOMAIN from /etc/hosts..."
+    sed -i "/$DOMAIN/d" /etc/hosts
+else
+    echo "$DOMAIN not found in /etc/hosts."
+fi
+
+echo "------------------------------------------------"
+echo "Uninstallation complete. Repository files were not deleted."
+echo "------------------------------------------------"

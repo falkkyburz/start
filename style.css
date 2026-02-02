@@ -1,0 +1,110 @@
+/* Catppuccin Mocha */
+:root {
+    --bg-color: #1e1e2e;
+    --text-color: #cdd6f4;
+    --subtext-color: #a6adc8;
+    --accent-color: #94e2d5;
+    --card-bg: #313244;
+    --card-hover: #45475a;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+}
+
+/* Clock Styling */
+#clock {
+    font-size: 4rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Search Bar Styling */
+.search-container {
+    margin-bottom: 40px;
+}
+
+input[type="text"] {
+    background: var(--card-bg);
+    border: 2px solid transparent;
+    color: var(--text-color);
+    padding: 15px 20px;
+    font-size: 1.2rem;
+    border-radius: 30px;
+    width: 400px;
+    outline: none;
+    transition: 0.3s;
+    text-align: center;
+}
+
+input[type="text"]:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(148, 226, 213, 0.4);
+}
+
+/* Categories Container */
+.categories {
+    display: flex;
+    gap: 60px;
+    align-items: flex-start;
+}
+
+.category h2 {
+    margin: 0 0 20px 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--subtext-color);
+    text-align: center;
+}
+
+/* Links Grid Styling */
+.links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.link-card {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-color);
+    text-align: center;
+    transition: transform 0.2s, background 0.2s;
+    min-width: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.link-card img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 6px;
+}
+
+.link-card .title {
+    font-weight: 600;
+}
+
+.link-card .subtitle {
+    font-size: 0.8rem;
+    color: var(--subtext-color);
+}
+
+.link-card:hover {
+    transform: translateY(-5px);
+    background-color: var(--card-hover);
+    color: var(--accent-color);
+}
