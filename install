@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Configuration
 SERVICE_NAME="startpage"
-PORT="${PORT:-80}"
+PORT="${PORT:-8000}"
 CURRENT_DIR="$(pwd)"
 CURRENT_USER="$(whoami)"
 PYTHON_BIN="$(command -v python3 || command -v python || true)"
