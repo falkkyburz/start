@@ -8,6 +8,10 @@
     --card-hover: #45475a;
 }
 
+* {
+    box-sizing: border-box;
+}
+
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
@@ -15,21 +19,28 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100vh;
+    justify-content: flex-start;
+    min-height: 100vh;
     margin: 0;
+    padding: 24px 16px 32px;
 }
 
 /* Clock Styling */
 #clock {
-    font-size: 4rem;
+    font-size: clamp(2rem, 8vw, 4rem);
     font-weight: bold;
     margin-bottom: 20px;
+    text-align: center;
 }
 
 /* Search Bar Styling */
 .search-container {
     margin-bottom: 40px;
+    width: min(460px, 100%);
+}
+
+.search-container form {
+    width: 100%;
 }
 
 input[type="text"] {
@@ -39,7 +50,7 @@ input[type="text"] {
     padding: 15px 20px;
     font-size: 1.2rem;
     border-radius: 30px;
-    width: 400px;
+    width: 100%;
     outline: none;
     transition: 0.3s;
     text-align: center;
@@ -52,9 +63,15 @@ input[type="text"]:focus {
 
 /* Categories Container */
 .categories {
-    display: flex;
-    gap: 60px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    width: min(1200px, 100%);
+    gap: clamp(20px, 4vw, 48px);
     align-items: flex-start;
+}
+
+.category {
+    min-width: 0;
 }
 
 .category h2 {
@@ -68,19 +85,19 @@ input[type="text"]:focus {
 /* Links Grid Styling */
 .links {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 14px;
 }
 
 .link-card {
     background-color: var(--card-bg);
-    padding: 20px;
+    padding: 16px 12px;
     border-radius: 12px;
     text-decoration: none;
     color: var(--text-color);
     text-align: center;
     transition: transform 0.2s, background 0.2s;
-    min-width: 100px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -101,10 +118,40 @@ input[type="text"]:focus {
 .link-card .subtitle {
     font-size: 0.8rem;
     color: var(--subtext-color);
+    overflow-wrap: anywhere;
 }
 
 .link-card:hover {
     transform: translateY(-5px);
     background-color: var(--card-hover);
     color: var(--accent-color);
+}
+
+@media (max-width: 640px) {
+    body {
+        padding: 16px 12px 24px;
+    }
+
+    #clock {
+        margin-bottom: 14px;
+    }
+
+    .search-container {
+        margin-bottom: 24px;
+    }
+
+    .categories {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .link-card img {
+        width: 42px;
+        height: 42px;
+    }
 }
