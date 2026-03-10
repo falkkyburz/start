@@ -7,14 +7,14 @@ DEFAULT_IF_IP=""
 FALLBACK_IP=""
 
 if [ -n "$DEFAULT_IF" ]; then
-    DEFAULT_IF_IP="$(ip -4 -o addr show dev "$DEFAULT_IF" scope global 2>/dev/null | awk 'NR==1 {split($4, a, "/"); print a[1]}')"
+  DEFAULT_IF_IP="$(ip -4 -o addr show dev "$DEFAULT_IF" scope global 2>/dev/null | awk 'NR==1 {split($4, a, "/"); print a[1]}')"
 fi
 
 FALLBACK_IP="$(ip -4 -o addr show scope global 2>/dev/null | awk 'NR==1 {split($4, a, "/"); print a[1]}')"
 IP_ADDR="${BIND_IP:-${DEFAULT_IF_IP:-$FALLBACK_IP}}"
 
 if [ -z "$IP_ADDR" ]; then
-    IP_ADDR="127.0.0.1"
+  IP_ADDR="127.0.0.1"
 fi
 
 echo "------------------------------------------------"

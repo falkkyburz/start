@@ -2,57 +2,35 @@
 set -euo pipefail
 
 SERVICE_NAME="startpage"
-DOMAIN="${DOMAIN:-start.home}"
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+SERVICE_FILE="$HOME/.config/systemd/user/${SERVICE_NAME}.service"
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then 
-  echo "Please run as root (use sudo)"
+if [ "$EUID" -eq 0 ]; then
+  echo "Run this uninstaller as your regular user (no sudo)."
   exit 1
 fi
 
 echo "Uninstalling Startpage..."
 
 # 1. Stop and Disable Service
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "Stopping service..."
-    systemctl stop "$SERVICE_NAME"
+if systemctl --user is-active --quiet "$SERVICE_NAME"; then
+  echo "Stopping service..."
+  systemctl --user stop "$SERVICE_NAME"
 fi
 
-if systemctl is-enabled --quiet "$SERVICE_NAME"; then
-    echo "Disabling service..."
-    systemctl disable "$SERVICE_NAME"
+if systemctl --user is-enabled --quiet "$SERVICE_NAME"; then
+  echo "Disabling service..."
+  systemctl --user disable "$SERVICE_NAME"
 fi
 
-# 2. Remove Systemd Service File
+# 2. Remove user service file
 if [ -f "$SERVICE_FILE" ]; then
-    echo "Removing service file..."
-    rm "$SERVICE_FILE"
-    systemctl daemon-reload
+  echo "Removing service file..."
+  rm "$SERVICE_FILE"
+  systemctl --user daemon-reload
 else
-    echo "Service file not found."
-fi
-
-# 3. Clean up /etc/hosts
-if awk -v d="$DOMAIN" '{for (i = 2; i <= NF; i++) if ($i == d) found = 1} END {exit(found ? 0 : 1)}' /etc/hosts; then
-    echo "Removing $DOMAIN from /etc/hosts..."
-    tmp_file="$(mktemp)"
-    awk -v d="$DOMAIN" '{
-      keep = 1
-      for (i = 2; i <= NF; i++) {
-        if ($i == d) {
-          keep = 0
-          break
-        }
-      }
-      if (keep) print
-    }' /etc/hosts > "$tmp_file"
-    cat "$tmp_file" > /etc/hosts
-    rm -f "$tmp_file"
-else
-    echo "$DOMAIN not found in /etc/hosts."
+  echo "Service file not found."
 fi
 
 echo "------------------------------------------------"
-echo "Uninstallation complete. Repository files were not deleted."
+echo "Uninstallation complete."
 echo "------------------------------------------------"
