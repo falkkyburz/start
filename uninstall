@@ -1,7 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
 SERVICE_NAME="startpage"
-DOMAIN="start.local"
+DOMAIN="${DOMAIN:-start.home}"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 # Check if running as root
@@ -33,10 +34,21 @@ else
 fi
 
 # 3. Clean up /etc/hosts
-# Uses sed to delete lines containing the domain name
-if grep -q "$DOMAIN" /etc/hosts; then
+if awk -v d="$DOMAIN" '{for (i = 2; i <= NF; i++) if ($i == d) found = 1} END {exit(found ? 0 : 1)}' /etc/hosts; then
     echo "Removing $DOMAIN from /etc/hosts..."
-    sed -i "/$DOMAIN/d" /etc/hosts
+    tmp_file="$(mktemp)"
+    awk -v d="$DOMAIN" '{
+      keep = 1
+      for (i = 2; i <= NF; i++) {
+        if ($i == d) {
+          keep = 0
+          break
+        }
+      }
+      if (keep) print
+    }' /etc/hosts > "$tmp_file"
+    cat "$tmp_file" > /etc/hosts
+    rm -f "$tmp_file"
 else
     echo "$DOMAIN not found in /etc/hosts."
 fi
