@@ -1,12 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
-# Configuration
 SERVICE_NAME="startpage"
+WEB_SERVICE="${SERVICE_NAME}.service"
+UPDATE_SERVICE="${SERVICE_NAME}-update.service"
+UPDATE_TIMER="${SERVICE_NAME}-update.timer"
 PORT="${PORT:-8000}"
+UPDATE_INTERVAL="${UPDATE_INTERVAL:-5min}"
+
 CURRENT_DIR="$(pwd)"
 CURRENT_USER="$(whoami)"
 PYTHON_BIN="$(command -v python3 || command -v python || true)"
+GIT_BIN="$(command -v git || true)"
+
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+INSTALL_ROOT="$HOME/.local/share/$SERVICE_NAME"
+REPO_DIR="$INSTALL_ROOT/repo"
+UPDATE_SCRIPT="$INSTALL_ROOT/update-repo.sh"
+
 DEFAULT_IF="$(ip route show default 2>/dev/null | awk 'NR==1 {print $5}')"
 DEFAULT_IF_IP=""
 FALLBACK_IP=""
@@ -17,9 +28,34 @@ if [ -z "$PYTHON_BIN" ]; then
   exit 1
 fi
 
+if [ -z "$GIT_BIN" ]; then
+  echo "Git is required but was not found in PATH."
+  exit 1
+fi
+
 if [ "$EUID" -eq 0 ]; then
   echo "Run this installer as your regular user (no sudo)."
   exit 1
+fi
+
+if ! git -C "$CURRENT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Run this installer from inside the git repo to deploy."
+  exit 1
+fi
+
+REPO_URL="$(git -C "$CURRENT_DIR" remote get-url origin 2>/dev/null || true)"
+if [ -z "$REPO_URL" ]; then
+  echo "No 'origin' remote found in this repo."
+  exit 1
+fi
+
+BRANCH="$(git -C "$CURRENT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [ -z "$BRANCH" ] || [ "$BRANCH" = "HEAD" ]; then
+  ORIGIN_HEAD="$(git -C "$CURRENT_DIR" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  BRANCH="${ORIGIN_HEAD#origin/}"
+fi
+if [ -z "$BRANCH" ]; then
+  BRANCH="main"
 fi
 
 if [ -n "$DEFAULT_IF" ]; then
@@ -34,18 +70,58 @@ fi
 echo "Installing Startpage..."
 echo "Source Directory: $CURRENT_DIR"
 echo "User: $CURRENT_USER"
-echo "Creating user service..."
-SERVICE_DIR="$HOME/.config/systemd/user"
-SERVICE_FILE="$SERVICE_DIR/${SERVICE_NAME}.service"
-mkdir -p "$SERVICE_DIR"
+echo "Repo URL: $REPO_URL"
+echo "Branch: $BRANCH"
 
-cat >"$SERVICE_FILE" <<EOF
+mkdir -p "$SYSTEMD_USER_DIR" "$INSTALL_ROOT"
+
+if [ -d "$REPO_DIR/.git" ]; then
+  EXISTING_URL="$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null || true)"
+  if [ "$EXISTING_URL" != "$REPO_URL" ]; then
+    echo "Updating existing checkout remote URL."
+    git -C "$REPO_DIR" remote set-url origin "$REPO_URL"
+  fi
+elif [ -e "$REPO_DIR" ]; then
+  echo "Expected $REPO_DIR to be a git checkout, but found a non-git path."
+  exit 1
+else
+  echo "Cloning repo to $REPO_DIR"
+  git clone --branch "$BRANCH" --single-branch "$REPO_URL" "$REPO_DIR"
+fi
+
+cat >"$UPDATE_SCRIPT" <<EOF
+#!/bin/bash
+set -euo pipefail
+REPO_DIR="$REPO_DIR"
+REPO_URL="$REPO_URL"
+BRANCH="$BRANCH"
+
+if [ ! -d "\$REPO_DIR/.git" ]; then
+  echo "Repo checkout not found at \$REPO_DIR"
+  exit 1
+fi
+
+CURRENT_URL="\$(git -C "\$REPO_DIR" remote get-url origin 2>/dev/null || true)"
+if [ -z "\$CURRENT_URL" ] || [ "\$CURRENT_URL" != "\$REPO_URL" ]; then
+  git -C "\$REPO_DIR" remote set-url origin "\$REPO_URL"
+fi
+
+git -C "\$REPO_DIR" fetch --prune origin "\$BRANCH"
+git -C "\$REPO_DIR" checkout -B "\$BRANCH" "origin/\$BRANCH"
+git -C "\$REPO_DIR" reset --hard "origin/\$BRANCH"
+EOF
+chmod +x "$UPDATE_SCRIPT"
+
+# Sync once during installation so the served files are current.
+"$UPDATE_SCRIPT"
+
+cat >"$SYSTEMD_USER_DIR/$WEB_SERVICE" <<EOF
 [Unit]
 Description=Local Start Page Server (User)
 After=network.target
 
 [Service]
-WorkingDirectory=$CURRENT_DIR
+WorkingDirectory=$REPO_DIR
 ExecStart=$PYTHON_BIN -m http.server $PORT --bind 0.0.0.0
 Restart=always
 RestartSec=3
@@ -54,16 +130,44 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
-echo "Enabling and starting user service..."
+cat >"$SYSTEMD_USER_DIR/$UPDATE_SERVICE" <<EOF
+[Unit]
+Description=Update Startpage repo from Git origin
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$UPDATE_SCRIPT
+EOF
+
+cat >"$SYSTEMD_USER_DIR/$UPDATE_TIMER" <<EOF
+[Unit]
+Description=Periodically update Startpage repo from Git origin
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=$UPDATE_INTERVAL
+Persistent=true
+Unit=$UPDATE_SERVICE
+
+[Install]
+WantedBy=timers.target
+EOF
+
+echo "Enabling and starting user units..."
 systemctl --user daemon-reload
-systemctl --user enable "$SERVICE_NAME"
-systemctl --user restart "$SERVICE_NAME"
+systemctl --user enable --now "$UPDATE_TIMER"
+systemctl --user start "$UPDATE_SERVICE"
+systemctl --user enable --now "$WEB_SERVICE"
 
 URL="http://$IP_ADDR:$PORT"
 
 echo "------------------------------------------------"
 echo "Success! Your start page is live at:"
 echo "$URL"
+echo "Repo cache: $REPO_DIR"
+echo "Update timer: $UPDATE_TIMER ($UPDATE_INTERVAL)"
 echo "Optional boot-start without login:"
 echo "sudo loginctl enable-linger $USER"
 echo "------------------------------------------------"

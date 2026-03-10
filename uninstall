@@ -2,7 +2,15 @@
 set -euo pipefail
 
 SERVICE_NAME="startpage"
-SERVICE_FILE="$HOME/.config/systemd/user/${SERVICE_NAME}.service"
+WEB_SERVICE="${SERVICE_NAME}.service"
+UPDATE_SERVICE="${SERVICE_NAME}-update.service"
+UPDATE_TIMER="${SERVICE_NAME}-update.timer"
+
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+INSTALL_ROOT="$HOME/.local/share/$SERVICE_NAME"
+WEB_SERVICE_FILE="$SYSTEMD_USER_DIR/$WEB_SERVICE"
+UPDATE_SERVICE_FILE="$SYSTEMD_USER_DIR/$UPDATE_SERVICE"
+UPDATE_TIMER_FILE="$SYSTEMD_USER_DIR/$UPDATE_TIMER"
 
 if [ "$EUID" -eq 0 ]; then
   echo "Run this uninstaller as your regular user (no sudo)."
@@ -11,25 +19,23 @@ fi
 
 echo "Uninstalling Startpage..."
 
-# 1. Stop and Disable Service
-if systemctl --user is-active --quiet "$SERVICE_NAME"; then
-  echo "Stopping service..."
-  systemctl --user stop "$SERVICE_NAME"
+systemctl --user disable --now "$UPDATE_TIMER" >/dev/null 2>&1 || true
+systemctl --user stop "$UPDATE_SERVICE" >/dev/null 2>&1 || true
+systemctl --user disable --now "$WEB_SERVICE" >/dev/null 2>&1 || true
+
+for file in "$UPDATE_TIMER_FILE" "$UPDATE_SERVICE_FILE" "$WEB_SERVICE_FILE"; do
+  if [ -f "$file" ]; then
+    echo "Removing $(basename "$file")"
+    rm "$file"
+  fi
+done
+
+if [ -d "$INSTALL_ROOT" ]; then
+  echo "Removing $INSTALL_ROOT"
+  rm -rf "$INSTALL_ROOT"
 fi
 
-if systemctl --user is-enabled --quiet "$SERVICE_NAME"; then
-  echo "Disabling service..."
-  systemctl --user disable "$SERVICE_NAME"
-fi
-
-# 2. Remove user service file
-if [ -f "$SERVICE_FILE" ]; then
-  echo "Removing service file..."
-  rm "$SERVICE_FILE"
-  systemctl --user daemon-reload
-else
-  echo "Service file not found."
-fi
+systemctl --user daemon-reload
 
 echo "------------------------------------------------"
 echo "Uninstallation complete."
